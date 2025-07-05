@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef, useMemo, memo, useCallback } = React;
+const { useState, useEffect, useRef, useMemo, memo, useCallback, createContext, useContext } = React;
 
 // --- DATA & CONFIG ---
 const initialContent = {
@@ -24,10 +24,10 @@ const initialContent = {
     valueRealisationTitle: "How We Realise Additional Value",
     valueRealisation: "Scale provides a dominant position to negotiate lender deals. The primary focus will be with lenders who have the appetite to tailor client solutions, including white-label products. The group will add value to lenders with additional volume, guaranteed deal quality, and insights to drive further sales.",
     valueRealisationUplift: "Any subsequent uplift in revenue from these enhanced lender deals will be used for any true-up calculations.",
+    swotTitle: "SWOT Analysis",
     imageGalleryTitle: "Image Gallery",
     supportingDocsTitle: "Supporting Documents"
 };
-
 const financialData = {
     valuations: { labels: ['SLA', 'BF', 'Target 1', 'Target 2'], data: [52.5, 52.5, 18.0, 15.0] },
     income: { labels: ['Year 1', 'Year 2', 'Year 3', 'Year 4'], ebitda: [17964906, 19997514, 24718768, 30500022], freeCashFlow: [14640531, 18598764, 20852518, 30887522] }
@@ -78,7 +78,6 @@ const useIntersectionObserver = (options) => {
     }, [options]);
     return [observer.current, entries];
 };
-
 const useScrollFadeIn = () => {
     const [observer, entries] = useIntersectionObserver({ threshold: 0.1 });
     useEffect(() => {
@@ -92,28 +91,26 @@ const useScrollFadeIn = () => {
 };
 
 // --- COMPONENTS ---
+const AppContext = createContext();
+
 const EditableText = ({ contentKey, value, onSave, as: Component = 'p', className = '' }) => {
     const [currentValue, setCurrentValue] = useState(value);
     const textareaRef = useRef(null);
-    const { isGlobalEditMode } = React.useContext(AppContext);
-
+    const { isGlobalEditMode } = useContext(AppContext);
     useEffect(() => {
         setCurrentValue(value);
     }, [value]);
-
     useEffect(() => {
         if (isGlobalEditMode && textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
         }
     }, [isGlobalEditMode, currentValue]);
-
     const handleBlur = () => {
         if (currentValue !== value) {
             onSave(contentKey, currentValue);
         }
     };
-
     if (isGlobalEditMode) {
         return (
             <textarea
@@ -126,7 +123,6 @@ const EditableText = ({ contentKey, value, onSave, as: Component = 'p', classNam
             />
         );
     }
-
     return (
         <Component className={`${className} editable-highlight whitespace-pre-wrap`}>{value}</Component>
     );
@@ -199,10 +195,10 @@ const Header = ({ activeSection, onDownload, isDownloading, onToggleEditMode, is
         { id: "financials", label: "Financials" },
         { id: "interactive-financials", label: "Interactive" },
         { id: "team", label: "Team" },
+        { id: "swot-analysis", label: "SWOT" },
         { id: "image-gallery", label: "Gallery" },
         { id: "supporting-documents", label: "Docs" }
     ];
-
     return (
         <header id="main-header" className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-200">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -261,12 +257,11 @@ const Section = ({ id, children, className = '', style }) => <section id={id} cl
 const SWOTAccordion = ({ title, items, forceOpen }) => {
     const [isOpen, setIsOpen] = useState(false);
     const isEffectivelyOpen = forceOpen || isOpen;
-
     return (
         <div className="fade-in-up">
             <button onClick={() => setIsOpen(!isOpen)} className="swot-toggle w-full p-5 text-left font-bold text-xl bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-sm" aria-expanded={isEffectivelyOpen}>
                 <span>{title}</span>
-                <span className="swot-icon text-2xl text-gray-400">+</span>
+                <span className="swot-icon text-2xl text-gray-400">{isEffectivelyOpen ? '-' : '+'}</span>
             </button>
             <div className={`swot-content mt-2 bg-white p-4 rounded-lg border border-gray-200 text-gray-600 ${isEffectivelyOpen ? '' : 'hidden'}`}>
                 <ul className="list-disc list-inside space-y-2">{items.map((item, index) => <li key={index}>{item}</li>)}</ul>
@@ -275,36 +270,30 @@ const SWOTAccordion = ({ title, items, forceOpen }) => {
     );
 };
 
+// ... (All Modal components remain the same)
 const TimelineEditorModal = ({ isOpen, onClose, onSave, data }) => {
     const [localData, setLocalData] = useState([]);
-
     useEffect(() => {
         setLocalData(JSON.parse(JSON.stringify(data)));
     }, [data]);
-
     if (!isOpen) return null;
-
     const handleFieldChange = (index, field, value) => {
         const updatedData = [...localData];
         updatedData[index][field] = value;
         setLocalData(updatedData);
     };
-
     const addMilestone = () => {
         setLocalData([...localData, { id: Date.now(), time: '', title: '', description: '' }]);
     };
-
     const deleteMilestone = (index) => {
         const updatedData = [...localData];
         updatedData.splice(index, 1);
         setLocalData(updatedData);
     };
-
     const handleSave = () => {
         onSave(localData);
         onClose();
     };
-
     return (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-2xl w-full max-w-4xl" onClick={e => e.stopPropagation()}>
@@ -341,37 +330,29 @@ const TimelineEditorModal = ({ isOpen, onClose, onSave, data }) => {
         </div>
     );
 };
-
 const TeamEditorModal = ({ isOpen, onClose, onSave, data }) => {
     const [localData, setLocalData] = useState([]);
-
     useEffect(() => {
         setLocalData(JSON.parse(JSON.stringify(data)));
     }, [data]);
-
     if (!isOpen) return null;
-
     const handleFieldChange = (index, field, value) => {
         const updatedData = [...localData];
         updatedData[index][field] = value;
         setLocalData(updatedData);
     };
-
     const addMember = () => {
         setLocalData([...localData, { id: Date.now(), name: '', role: '', bio: '' }]);
     };
-
     const deleteMember = (index) => {
         const updatedData = [...localData];
         updatedData.splice(index, 1);
         setLocalData(updatedData);
     };
-
     const handleSave = () => {
         onSave(localData);
         onClose();
     };
-
     return (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-2xl w-full max-w-4xl" onClick={e => e.stopPropagation()}>
@@ -408,22 +389,17 @@ const TeamEditorModal = ({ isOpen, onClose, onSave, data }) => {
         </div>
     );
 };
-
 const SupportingDocsEditorModal = ({ isOpen, onClose, onSave, data }) => {
     const [localData, setLocalData] = useState([]);
-
     useEffect(() => {
         setLocalData(JSON.parse(JSON.stringify(data)));
     }, [data]);
-
     if (!isOpen) return null;
-
     const handleFieldChange = (index, field, value) => {
         const updatedData = [...localData];
         updatedData[index][field] = value;
         setLocalData(updatedData);
     };
-
     const handleFileChange = (index, file) => {
         const updatedData = [...localData];
         if (updatedData[index].url && updatedData[index].url.startsWith('blob:')) {
@@ -433,11 +409,9 @@ const SupportingDocsEditorModal = ({ isOpen, onClose, onSave, data }) => {
         updatedData[index].url = file ? URL.createObjectURL(file) : "#";
         setLocalData(updatedData);
     };
-
     const addDoc = () => {
         setLocalData([...localData, { id: Date.now(), title: '', description: '', file: null, url: '#' }]);
     };
-
     const deleteDoc = (index) => {
         const updatedData = [...localData];
         if (updatedData[index].url && updatedData[index].url.startsWith('blob:')) {
@@ -446,12 +420,10 @@ const SupportingDocsEditorModal = ({ isOpen, onClose, onSave, data }) => {
         updatedData.splice(index, 1);
         setLocalData(updatedData);
     };
-
     const handleSave = () => {
         onSave(localData);
         onClose();
     };
-
     return (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-2xl w-full max-w-4xl" onClick={e => e.stopPropagation()}>
@@ -500,7 +472,6 @@ const SupportingDocsEditorModal = ({ isOpen, onClose, onSave, data }) => {
         </div>
     );
 };
-
 const ProfitabilityModal = ({ isOpen, onClose, data }) => {
     if (!isOpen) return null;
     const formatCurrency = (value) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
@@ -585,7 +556,6 @@ const InteractiveFinancials = () => {
         }
         return results;
     }, [growthFactor, interestRate, t1AcqMonth, t2AcqMonth]);
-
     const handleMonthClick = (monthIndex) => {
         const relevantMonths = cashflow.slice(monthIndex, monthIndex + 12);
         if (relevantMonths.length === 0) return;
@@ -598,9 +568,7 @@ const InteractiveFinancials = () => {
         const netProfit = totalEBITDA + totalDebtInterest + totalNewStaffCosts + totalAmortisation + totalDividends;
         setModalData({ startMonth: monthIndex + 1, totalEBITDA, totalDebtInterest, totalNewStaffCosts, totalAmortisation, totalDividends, netProfit });
     };
-
     const formatCurrency = (value) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
-
     return (
         <Section id="interactive-financials" className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up">Interactive Financials</h2>
@@ -661,13 +629,13 @@ const FinancialSummary = memo(() => {
             <div className="grid lg:grid-cols-2 gap-8">
                 <div className="bg-white border border-gray-200 p-6 rounded-lg fade-in-up shadow-lg">
                     <h3 className="text-xl font-bold text-center mb-4">Entity Valuations (in Millions)</h3>
-                    <div className="chart-container">
+                    <div className="h-80">
                         <ChartComponent type='bar' data={{ labels: financialData.valuations.labels, datasets: [{ label: 'Valuation in Millions ($)', data: financialData.valuations.data, backgroundColor: ['#FB923C', '#FB923C', '#FDBA74', '#FDBA74'], borderWidth: 0 }] }} options={{ ...sharedChartOptions, plugins: { ...sharedChartOptions.plugins, legend: { display: false }, tooltip: { ...sharedChartOptions.plugins.tooltip, callbacks: { label: (c) => `$${c.parsed.y} Million` } } }, scales: { ...sharedChartOptions.scales, y: { ...sharedChartOptions.scales.y, beginAtZero: true, title: { ...sharedChartOptions.scales.y.title, text: 'Valuation ($M)' } } } }} />
                     </div>
                 </div>
                 <div className="bg-white border border-gray-200 p-6 rounded-lg fade-in-up shadow-lg">
                     <h3 className="text-xl font-bold text-center mb-4">Projected Income (Years 1-4)</h3>
-                    <div className="chart-container">
+                    <div className="h-80">
                         <ChartComponent type='bar' data={{ labels: financialData.income.labels, datasets: [{ label: 'Projected EBITDA', data: financialData.income.ebitda, backgroundColor: '#FB923C' }, { label: 'Free Cash Flow', data: financialData.income.freeCashFlow, backgroundColor: '#FDBA74' }] }} options={{ ...sharedChartOptions, plugins: { ...sharedChartOptions.plugins, legend: { position: 'top' }, tooltip: { ...sharedChartOptions.plugins.tooltip, callbacks: { label: (c) => `${c.dataset.label}: ${formatCurrency(c.parsed.y)}` } } }, scales: { ...sharedChartOptions.scales, y: { ...sharedChartOptions.scales.y, ticks: { callback: (v) => formatMillions(v) }, title: { ...sharedChartOptions.scales.y.title, text: 'Amount ($)' } } } }} />
                     </div>
                 </div>
@@ -676,10 +644,8 @@ const FinancialSummary = memo(() => {
     )
 });
 
-const AppContext = React.createContext();
-
 const App = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(true);
+    const [appState, setAppState] = useState('intro'); // 'intro', 'auth', 'main'
     const [activeSection, setActiveSection] = useState('overview');
     const [isDownloading, setIsDownloading] = useState(false);
     const [forceSwotOpen, setForceSwotOpen] = useState(false);
@@ -697,17 +663,33 @@ const App = () => {
     const handleContentSave = (key, newValue) => {
         setTextContent(prev => ({ ...prev, [key]: newValue }));
     };
-
     const handleSaveTimeline = (newTimelineData) => {
         setTimelineData(newTimelineData);
     };
-
     const handleSaveTeam = (newTeamData) => {
         setLeadershipTeam(newTeamData);
     };
-
     const handleSaveDocs = (newDocsData) => {
         setSupportingDocs(newDocsData);
+    };
+    
+    const handleShare = async () => {
+        const shareData = {
+            title: 'Credit Appetite Paper',
+            text: 'Check out this confidential interactive transaction briefing document.',
+            url: window.location.href
+        };
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                alert('Link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error("Share failed:", err);
+            alert('Failed to share. Please copy the link manually.');
+        }
     };
 
     const handleDownloadPDF = async () => {
@@ -716,8 +698,8 @@ const App = () => {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        
         const margin = 15;
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -726,24 +708,21 @@ const App = () => {
 
         const checkPageEnd = (y, requiredHeight) => {
             if (y + requiredHeight > pageHeight - margin) {
-                doc.addPage(null, 'landscape');
+                doc.addPage();
                 return margin;
             }
             return y;
         };
-
         const addTitle = (text, y) => {
             doc.setFontSize(22).setFont('helvetica', 'bold');
             doc.text(text, pageWidth / 2, y, { align: 'center' });
             return y + 12;
         };
-
         const addSectionTitle = (text, y) => {
             doc.setFontSize(14).setFont('helvetica', 'bold');
             doc.text(text, margin, y, { align: 'left' });
             return y + 8;
         };
-
         const addWrappedText = (text, y, options = {}) => {
             const { fontSize = 9, style = 'normal', indent = 0 } = options;
             doc.setFontSize(fontSize).setFont('helvetica', style);
@@ -753,7 +732,6 @@ const App = () => {
             doc.text(lines, margin + indent, y, { align: 'left' });
             return y + textHeight + 6;
         };
-
         const addElementAsImage = async (selector, y, options = {}) => {
             const { isJpg = false, bgColor = '#ffffff' } = options;
             const element = document.querySelector(selector);
@@ -767,14 +745,13 @@ const App = () => {
             let imgHeight = (imgProps.height * imgWidth) / imgProps.width;
 
             y = checkPageEnd(y, imgHeight + 10);
-
+            
             if (imgHeight > pageHeight - margin * 2) {
                 imgHeight = pageHeight - margin * 2 - 10;
                 imgWidth = imgHeight * (imgProps.width / imgProps.height);
             }
 
             const xPos = margin + (contentWidth - imgWidth) / 2;
-
             doc.addImage(imgData, isJpg ? 'JPEG' : 'PNG', xPos, y, imgWidth, imgHeight);
             return y + imgHeight + 10;
         };
@@ -786,7 +763,7 @@ const App = () => {
         currentY = addSectionTitle(textContent.strategyTitle, currentY);
         currentY = await addElementAsImage('#horizontal-timeline', currentY, { bgColor: null });
 
-        doc.addPage(null, 'landscape');
+        doc.addPage();
         currentY = margin;
         currentY = addTitle(textContent.opportunityTitle, currentY);
         currentY = addWrappedText(textContent.opportunityProse, currentY);
@@ -795,7 +772,7 @@ const App = () => {
         currentY = addSectionTitle(textContent.financialOfferTitle, currentY);
         currentY = addWrappedText(textContent.financialOffer, currentY);
 
-        doc.addPage(null, 'landscape');
+        doc.addPage();
         currentY = margin;
         currentY = addTitle('Opportunity (Cont.) & Financials', currentY);
         currentY = addSectionTitle(textContent.businessSupportTitle, currentY);
@@ -805,26 +782,26 @@ const App = () => {
         currentY = addSectionTitle('Key Numbers at a Glance', currentY);
         currentY = await addElementAsImage('#key-numbers .bg-white', currentY, { isJpg: true });
 
-        doc.addPage(null, 'landscape');
+        doc.addPage();
         currentY = margin;
-        currentY = addTitle('Financial Summary, Leadership & SWOT Analysis', currentY);
+        currentY = addTitle('Financial Summary & Leadership', currentY);
         currentY = addSectionTitle('Financial Summary Charts', currentY);
         currentY = await addElementAsImage('#financials .grid', currentY, { isJpg: true });
         currentY = addSectionTitle('Leadership Team', currentY);
         currentY = addWrappedText(leadershipTeam.map(m => `${m.name} (${m.role}): ${m.bio}`).join('\n\n'), currentY);
 
-        doc.addPage(null, 'landscape');
+        doc.addPage();
         currentY = margin;
         currentY = addTitle('SWOT Analysis', currentY);
-        currentY = await addElementAsImage('#team .max-w-4xl.mx-auto.grid', currentY, { isJpg: true, bgColor: '#F9FAFB' });
+        currentY = await addElementAsImage('#swot-analysis', currentY, { isJpg: true, bgColor: '#F9FAFB' });
 
-        doc.addPage(null, 'landscape');
+        doc.addPage();
         currentY = margin;
         currentY = addTitle('Interactive Financials - Cashflow Projection', currentY);
         currentY = addWrappedText('The following table represents the cashflow projection based on the currently selected parameters in the interactive document.', currentY, { style: 'italic' });
         await addElementAsImage('#cashflow-table-container', currentY, { isJpg: true });
-
-        doc.addPage(null, 'landscape');
+        
+        doc.addPage();
         currentY = margin;
         currentY = addTitle('Supporting Documents', currentY);
         supportingDocs.forEach(doc => {
@@ -838,7 +815,7 @@ const App = () => {
     };
 
     useEffect(() => {
-        if (isAuthenticated) {
+        if (appState === 'main') {
             const observer = new IntersectionObserver(
                 (entries) => {
                     const intersectingEntries = entries.filter(e => e.isIntersecting);
@@ -849,163 +826,184 @@ const App = () => {
                 },
                 {
                     threshold: 0.1,
-                    rootMargin: "-100px 0px -50% 0px" // Adjust the "active" zone
+                    rootMargin: "-100px 0px -50% 0px"
                 }
             );
-
             const sections = document.querySelectorAll('section');
             sections.forEach(section => observer.observe(section));
-
             return () => {
                 sections.forEach(section => observer.unobserve(section));
             };
         }
-    }, [isAuthenticated]);
+    }, [appState]);
+
+    if (appState === 'intro') {
+        return <IntroScreen onLaunch={() => setAppState('auth')} />;
+    }
+    if (appState === 'auth') {
+        return <PasswordGate onAuthenticated={() => setAppState('main')} />;
+    }
 
     return (
         <AppContext.Provider value={{ isGlobalEditMode }}>
             <div className={isGlobalEditMode ? 'global-edit-mode' : ''}>
-                {isAuthenticated && (
-                    <div id="main-content">
-                        <Header activeSection={activeSection} onDownload={handleDownloadPDF} isDownloading={isDownloading} onToggleEditMode={() => setIsGlobalEditMode(!isGlobalEditMode)} isGlobalEditMode={isGlobalEditMode} />
-                        <main>
-                            <Section id="overview" className="py-20 section-bg" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1531403009284-440993d21634?q=80&w=2940&auto=format&fit=crop')" }}>
-                                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                    <EditableText as="h2" contentKey="overviewTitle" value={textContent.overviewTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold mb-4 fade-in-up text-gray-900 text-center" />
-                                    <div className="text-lg text-gray-600 text-left mb-16 fade-in-up" style={{ transitionDelay: '100ms' }}>
-                                        <EditableText contentKey="overviewProse" value={textContent.overviewProse} onSave={handleContentSave} />
-                                    </div>
-                                    <div className="grid md:grid-cols-3 gap-8 text-center">
-                                        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 p-8 rounded-lg fade-in-up" style={{ transitionDelay: '200ms' }}>
-                                            <EditableText as="h3" contentKey="marketShareTitle" value={textContent.marketShareTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
-                                            <EditableText as="p" contentKey="marketShareText" value={textContent.marketShareText} onSave={handleContentSave} className="text-gray-600" />
-                                        </div>
-                                        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 p-8 rounded-lg fade-in-up" style={{ transitionDelay: '300ms' }}>
-                                            <EditableText as="h3" contentKey="innovationTitle" value={textContent.innovationTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
-                                            <EditableText as="p" contentKey="innovationText" value={textContent.innovationText} onSave={handleContentSave} className="text-gray-600" />
-                                        </div>
-                                        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 p-8 rounded-lg fade-in-up" style={{ transitionDelay: '400ms' }}>
-                                            <EditableText as="h3" contentKey="shareholderValueTitle" value={textContent.shareholderValueTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
-                                            <EditableText as="p" contentKey="shareholderValueText" value={textContent.shareholderValueText} onSave={handleContentSave} className="text-gray-600" />
-                                        </div>
-                                    </div>
+                <div id="main-content">
+                    <Header 
+                        activeSection={activeSection} 
+                        onDownload={handleDownloadPDF} 
+                        isDownloading={isDownloading} 
+                        onToggleEditMode={() => setIsGlobalEditMode(!isGlobalEditMode)} 
+                        isGlobalEditMode={isGlobalEditMode}
+                        onShare={handleShare}
+                    />
+                    <main>
+                        <Section id="overview" className="py-20 bg-gray-50">
+                            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                                <EditableText as="h2" contentKey="overviewTitle" value={textContent.overviewTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold mb-4 fade-in-up text-gray-900 text-center" />
+                                <div className="text-lg text-gray-600 text-left mb-16 fade-in-up max-w-4xl mx-auto" style={{ transitionDelay: '100ms' }}>
+                                    <EditableText contentKey="overviewProse" value={textContent.overviewProse} onSave={handleContentSave} />
                                 </div>
-                            </Section>
-                            <Section id="strategy" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <div className="text-center mb-16">
-                                    <EditableText as="h2" contentKey="strategyTitle" value={textContent.strategyTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
-                                    {isGlobalEditMode && (
-                                        <button onClick={() => setIsTimelineModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                        </button>
-                                    )}
-                                </div>
-                                <div id="horizontal-timeline" className="w-full fade-in-up">
-                                    <div className="flex flex-col md:flex-row justify-center items-start space-y-8 md:space-y-0 md:space-x-4">
-                                        {timelineData.sort((a, b) => new Date(a.time) - new Date(b.time)).map((item, index) => (
-                                            <React.Fragment key={item.id}>
-                                                <div className="flex-1 flex flex-col timeline-card relative group">
-                                                    <div className="flex flex-col items-center">
-                                                        <div className="w-10 h-10 bg-[#F97316] rounded-full flex items-center justify-center text-white font-bold text-xl z-10">{index + 1}</div>
-                                                    </div>
-                                                    <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm text-center flex-grow mt-[-20px] pt-8">
-                                                        <p className="text-sm font-semibold text-gray-500">{new Date(item.time).toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                                                        <h3 className="text-xl font-bold my-2">{item.title}</h3>
-                                                        <p className="text-gray-600 text-sm">{item.description}</p>
-                                                    </div>
-                                                </div>
-                                                {index < timelineData.length - 1 && (<div className="hidden md:flex items-center self-center h-full pt-10"><svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"></path></svg></div>)}
-                                            </React.Fragment>
-                                        ))}
+                                <div className="grid md:grid-cols-3 gap-8 text-center max-w-6xl mx-auto">
+                                    <div className="bg-white border border-gray-200 p-8 rounded-lg fade-in-up shadow-sm" style={{ transitionDelay: '200ms' }}>
+                                        <EditableText as="h3" contentKey="marketShareTitle" value={textContent.marketShareTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
+                                        <EditableText as="p" contentKey="marketShareText" value={textContent.marketShareText} onSave={handleContentSave} className="text-gray-600" />
+                                    </div>
+                                    <div className="bg-white border border-gray-200 p-8 rounded-lg fade-in-up shadow-sm" style={{ transitionDelay: '300ms' }}>
+                                        <EditableText as="h3" contentKey="innovationTitle" value={textContent.innovationTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
+                                        <EditableText as="p" contentKey="innovationText" value={textContent.innovationText} onSave={handleContentSave} className="text-gray-600" />
+                                    </div>
+                                    <div className="bg-white border border-gray-200 p-8 rounded-lg fade-in-up shadow-sm" style={{ transitionDelay: '400ms' }}>
+                                        <EditableText as="h3" contentKey="shareholderValueTitle" value={textContent.shareholderValueTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-3" />
+                                        <EditableText as="p" contentKey="shareholderValueText" value={textContent.shareholderValueText} onSave={handleContentSave} className="text-gray-600" />
                                     </div>
                                 </div>
-                            </Section>
-                            <Section id="opportunity" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <EditableText as="h2" contentKey="opportunityTitle" value={textContent.opportunityTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up" />
-                                <div className="text-lg text-gray-600 text-left mb-12 fade-in-up" style={{ transitionDelay: '100ms' }}>
-                                    <EditableText contentKey="opportunityProse" value={textContent.opportunityProse} onSave={handleContentSave} />
-                                </div>
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="marketRationaleTitle" value={textContent.marketRationaleTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="marketRationale" value={textContent.marketRationale} onSave={handleContentSave} className="text-gray-600 mb-4" /></div>
-                                    <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="financialOfferTitle" value={textContent.financialOfferTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="financialOffer" value={textContent.financialOffer} onSave={handleContentSave} className="text-gray-600 mb-4" /></div>
-                                    <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="businessSupportTitle" value={textContent.businessSupportTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="businessSupport" value={textContent.businessSupport} onSave={handleContentSave} className="text-gray-600 mb-4" /><EditableText contentKey="businessSupportNego" value={textContent.businessSupportNego} onSave={handleContentSave} className="text-gray-600 font-semibold" /></div>
-                                    <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="valueRealisationTitle" value={textContent.valueRealisationTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="valueRealisation" value={textContent.valueRealisation} onSave={handleContentSave} className="text-gray-600 mb-4" /><EditableText contentKey="valueRealisationUplift" value={textContent.valueRealisationUplift} onSave={handleContentSave} className="text-gray-600" /></div>
-                                </div>
-                            </Section>
-                            <Section id="key-numbers" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up">Key Numbers at a Glance</h2>
-                                <p className="text-lg text-gray-600 text-center max-w-3xl mx-auto mb-16 fade-in-up" style={{ transitionDelay: '100ms' }}>A detailed breakdown of the core financial data underpinning the valuation and structure of Project Synergy.</p>
-                                <div className="bg-white border border-gray-200 rounded-lg p-6 md:p-8 fade-in-up shadow-lg"><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Valuation & Acquisition</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Metric</th><th className="pb-2 text-right font-normal">Value</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Total Value</td><td className="py-2 text-right font-mono">$138,000,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Total Consideration Shares</td><td className="py-2 text-right font-mono">$100,500,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Total Consideration Cash</td><td className="py-2 text-right font-mono">$37,500,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">First Payment (Cash)</td><td className="py-2 text-right font-mono">$21,000,000</td></tr><tr><td className="pt-2">Second Payment (Cash)</td><td className="pt-2 text-right font-mono">$16,500,000</td></tr></tbody></table></div><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Closing Year 1 Balance Sheet</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Account</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Cash</td><td className="py-2 text-right font-mono">$8,090,531</td></tr><tr className="border-b border-gray-200"><td className="py-2">Goodwill</td><td className="py-2 text-right font-mono">$105,500,000</td></tr><tr className="border-b border-gray-200 text-gray-900 font-bold"><td className="py-2">Total Assets</td><td className="py-2 text-right font-mono">$114,399,531</td></tr><tr className="border-b border-gray-200"><td className="py-2">Liability to Bank</td><td className="py-2 text-right font-mono">$27,625,000</td></tr><tr className="text-gray-900 font-bold"><td className="pt-2">Net Equity</td><td className="pt-2 text-right font-mono">$86,765,531</td></tr></tbody></table></div><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Profitability</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Metric</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Profit Day 1-180</td><td className="py-2 text-right font-mono">$6,750,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Profit Day 180-365</td><td className="py-2 text-right font-mono">$9,500,000</td></tr><tr className="text-gray-900 font-bold"><td className="pt-2">First 12 months Profit</td><td className="pt-2 text-right font-mono">$16,250,000</td></tr></tbody></table></div></div></div>
-                            </Section>
-                            <Section id="financials" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up">Financial Summary</h2>
-                                <p className="text-lg text-gray-600 text-center max-w-3xl mx-auto mb-16 fade-in-up" style={{ transitionDelay: '100ms' }}>A high-level overview of our financial projections, based on the initial scenario.</p>
-                                <FinancialSummary />
-                            </Section>
-                            <InteractiveFinancials />
-                            <Section id="team" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <div className="text-center mb-16">
-                                    <EditableText as="h2" contentKey="teamTitle" value={textContent.teamTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
-                                    {isGlobalEditMode && (
-                                        <button onClick={() => setIsTeamModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-                                    {leadershipTeam.map((member, index) => (
-                                    <div key={member.id} className="text-center fade-in-up" style={{ transitionDelay: `${100 * (index + 1)}ms` }}><div className="w-28 h-28 bg-gray-200 border-2 border-gray-300 rounded-full mx-auto flex items-center justify-center mb-4"><span className="text-4xl text-gray-400 font-bold">{member.name.split(' ').map(n => n[0]).join('')}</span></div><h4 className="font-bold text-xl">{member.name}</h4><p className="text-md text-[#F97316] mb-2">{member.role}</p><p className="text-gray-600 max-w-xs mx-auto text-sm">{member.bio}</p></div>
-                                    ))}
-                                </div>
-                            </Section>
-                            <Section id="image-gallery" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                {/* This section is now empty and will be replaced by the carousel */}
-                            </Section>
-                            <Section id="supporting-documents" className="container mx-auto px-4 sm:px-6 lg:px-8">
-                                <div className="text-center mb-16">
-                                    <EditableText as="h2" contentKey="supportingDocsTitle" value={textContent.supportingDocsTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
-                                    {isGlobalEditMode && (
-                                        <button onClick={() => setIsDocsModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {supportingDocs.map(doc => (
-                                        <div key={doc.id} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm flex flex-col">
-                                            <h3 className="text-xl font-bold mb-2">{doc.title}</h3>
-                                            <p className="text-gray-600 text-sm mb-4 flex-grow">{doc.description}</p>
-                                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className={`mt-auto text-white text-center font-bold py-2 px-4 rounded-md transition-colors ${doc.url && doc.url !== '#' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-400 cursor-not-allowed'}`}>View Document</a>
-                                        </div>
-                                    ))}
-                                </div>
-                            </Section>
-                        </main>
-                        <footer className="border-t border-gray-200 mt-24">
-                            <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-gray-500">
-                                <p>Credit Appetite Paper &copy; 2025. All information is confidential.</p>
                             </div>
-                        </footer>
-                        <TimelineEditorModal
-                            isOpen={isTimelineModalOpen}
-                            onClose={() => setIsTimelineModalOpen(false)}
-                            onSave={handleSaveTimeline}
-                            data={timelineData}
-                        />
-                        <TeamEditorModal
-                            isOpen={isTeamModalOpen}
-                            onClose={() => setIsTeamModalOpen(false)}
-                            onSave={handleSaveTeam}
-                            data={leadershipTeam}
-                        />
-                        <SupportingDocsEditorModal
-                            isOpen={isDocsModalOpen}
-                            onClose={() => setIsDocsModalOpen(false)}
-                            onSave={handleSaveDocs}
-                            data={supportingDocs}
-                        />
-                    </div>
-                )}
+                        </Section>
+                        
+                        <Section id="strategy" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <EditableText as="h2" contentKey="strategyTitle" value={textContent.strategyTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
+                                {isGlobalEditMode && (
+                                    <button onClick={() => setIsTimelineModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
+                                )}
+                            </div>
+                            <div id="horizontal-timeline" className="w-full fade-in-up">
+                                <div className="flex flex-col md:flex-row justify-center items-start space-y-8 md:space-y-0 md:space-x-4">
+                                    {timelineData.sort((a, b) => new Date(a.time) - new Date(b.time)).map((item, index) => (
+                                        <React.Fragment key={item.id}>
+                                            <div className="flex-1 flex flex-col timeline-card relative group">
+                                                <div className="flex flex-col items-center">
+                                                    <div className="w-10 h-10 bg-[#F97316] rounded-full flex items-center justify-center text-white font-bold text-xl z-10">{index + 1}</div>
+                                                </div>
+                                                <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm text-center flex-grow mt-[-20px] pt-8">
+                                                    <p className="text-sm font-semibold text-gray-500">{new Date(item.time).toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                                                    <h3 className="text-xl font-bold my-2">{item.title}</h3>
+                                                    <p className="text-gray-600 text-sm">{item.description}</p>
+                                                </div>
+                                            </div>
+                                            {index < timelineData.length - 1 && (<div className="hidden md:flex items-center self-center h-full pt-10"><svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"></path></svg></div>)}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </div>
+                        </Section>
+
+                        <Section id="opportunity" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <EditableText as="h2" contentKey="opportunityTitle" value={textContent.opportunityTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up" />
+                            <div className="text-lg text-gray-600 text-left mb-12 fade-in-up max-w-4xl mx-auto" style={{ transitionDelay: '100ms' }}>
+                                <EditableText contentKey="opportunityProse" value={textContent.opportunityProse} onSave={handleContentSave} />
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                                <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="marketRationaleTitle" value={textContent.marketRationaleTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="marketRationale" value={textContent.marketRationale} onSave={handleContentSave} className="text-gray-600 mb-4" /></div>
+                                <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="financialOfferTitle" value={textContent.financialOfferTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="financialOffer" value={textContent.financialOffer} onSave={handleContentSave} className="text-gray-600 mb-4" /></div>
+                                <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="businessSupportTitle" value={textContent.businessSupportTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="businessSupport" value={textContent.businessSupport} onSave={handleContentSave} className="text-gray-600 mb-4" /><EditableText contentKey="businessSupportNego" value={textContent.businessSupportNego} onSave={handleContentSave} className="text-gray-600 font-semibold" /></div>
+                                <div className="bg-white border border-gray-200 p-8 rounded-lg shadow-lg fade-in-up"><EditableText as="h3" contentKey="valueRealisationTitle" value={textContent.valueRealisationTitle} onSave={handleContentSave} className="text-2xl font-bold text-[#F97316] mb-4" /><EditableText contentKey="valueRealisation" value={textContent.valueRealisation} onSave={handleContentSave} className="text-gray-600 mb-4" /><EditableText contentKey="valueRealisationUplift" value={textContent.valueRealisationUplift} onSave={handleContentSave} className="text-gray-600" /></div>
+                            </div>
+                        </Section>
+
+                        <Section id="key-numbers" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up">Key Numbers at a Glance</h2>
+                            <p className="text-lg text-gray-600 text-center max-w-3xl mx-auto mb-16 fade-in-up" style={{ transitionDelay: '100ms' }}>A detailed breakdown of the core financial data underpinning the valuation and structure of Project Synergy.</p>
+                            <div className="bg-white border border-gray-200 rounded-lg p-6 md:p-8 fade-in-up shadow-lg"><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Valuation & Acquisition</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Metric</th><th className="pb-2 text-right font-normal">Value</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Total Value</td><td className="py-2 text-right font-mono">$138,000,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Total Consideration Shares</td><td className="py-2 text-right font-mono">$100,500,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Total Consideration Cash</td><td className="py-2 text-right font-mono">$37,500,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">First Payment (Cash)</td><td className="py-2 text-right font-mono">$21,000,000</td></tr><tr><td className="pt-2">Second Payment (Cash)</td><td className="pt-2 text-right font-mono">$16,500,000</td></tr></tbody></table></div><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Closing Year 1 Balance Sheet</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Account</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Cash</td><td className="py-2 text-right font-mono">$8,090,531</td></tr><tr className="border-b border-gray-200"><td className="py-2">Goodwill</td><td className="py-2 text-right font-mono">$105,500,000</td></tr><tr className="border-b border-gray-200 text-gray-900 font-bold"><td className="py-2">Total Assets</td><td className="py-2 text-right font-mono">$114,399,531</td></tr><tr className="border-b border-gray-200"><td className="py-2">Liability to Bank</td><td className="py-2 text-right font-mono">$27,625,000</td></tr><tr className="text-gray-900 font-bold"><td className="pt-2">Net Equity</td><td className="pt-2 text-right font-mono">$86,765,531</td></tr></tbody></table></div><div className="space-y-6"><h3 className="text-2xl font-bold text-[#F97316] border-b border-gray-200 pb-2">Profitability</h3><table className="w-full text-left"><thead className="text-gray-500"><tr><th className="pb-2 font-normal">Metric</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody><tr className="border-b border-gray-200"><td className="py-2">Profit Day 1-180</td><td className="py-2 text-right font-mono">$6,750,000</td></tr><tr className="border-b border-gray-200"><td className="py-2">Profit Day 180-365</td><td className="py-2 text-right font-mono">$9,500,000</td></tr><tr className="text-gray-900 font-bold"><td className="pt-2">First 12 months Profit</td><td className="pt-2 text-right font-mono">$16,250,000</td></tr></tbody></table></div></div></div>
+                        </Section>
+                        
+                        <Section id="financials" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 fade-in-up">Financial Summary</h2>
+                            <p className="text-lg text-gray-600 text-center max-w-3xl mx-auto mb-16 fade-in-up" style={{ transitionDelay: '100ms' }}>A high-level overview of our financial projections, based on the initial scenario.</p>
+                            <FinancialSummary />
+                        </Section>
+                        
+                        <InteractiveFinancials />
+                        
+                        <Section id="team" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <EditableText as="h2" contentKey="teamTitle" value={textContent.teamTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
+                                {isGlobalEditMode && (
+                                    <button onClick={() => setIsTeamModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+                                {leadershipTeam.map((member, index) => (
+                                <div key={member.id} className="text-center fade-in-up" style={{ transitionDelay: `${100 * (index + 1)}ms` }}><div className="w-28 h-28 bg-gray-200 border-2 border-gray-300 rounded-full mx-auto flex items-center justify-center mb-4"><span className="text-4xl text-gray-400 font-bold">{member.name.split(' ').map(n => n[0]).join('')}</span></div><h4 className="font-bold text-xl">{member.name}</h4><p className="text-md text-[#F97316] mb-2">{member.role}</p><p className="text-gray-600 max-w-xs mx-auto text-sm">{member.bio}</p></div>
+                                ))}
+                            </div>
+                        </Section>
+
+                        <Section id="swot-analysis" className="bg-gray-50 py-20">
+                            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                                <EditableText as="h2" contentKey="swotTitle" value={textContent.swotTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold text-center mb-16 fade-in-up" />
+                                <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+                                    {swotData.map((swot, index) => (
+                                        <SWOTAccordion key={index} title={swot.title} items={swot.items} forceOpen={forceSwotOpen} />
+                                    ))}
+                                </div>
+                            </div>
+                        </Section>
+
+                        <Section id="image-gallery" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                             <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 fade-in-up">Image Gallery</h2>
+                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                {initialImageData.map((img, index) => (
+                                    <div key={img.id} className="fade-in-up" style={{ transitionDelay: `${index * 50}ms` }}>
+                                        <img src={img.src} alt={img.alt} className="w-full h-full object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300" />
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                        
+                        <Section id="supporting-documents" className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <EditableText as="h2" contentKey="supportingDocsTitle" value={textContent.supportingDocsTitle} onSave={handleContentSave} className="text-4xl md:text-5xl font-bold fade-in-up inline-block" />
+                                {isGlobalEditMode && (
+                                    <button onClick={() => setIsDocsModalOpen(true)} className="ml-4 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors inline-block align-middle">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {supportingDocs.map(doc => (
+                                    <div key={doc.id} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm flex flex-col">
+                                        <h3 className="text-xl font-bold mb-2">{doc.title}</h3>
+                                        <p className="text-gray-600 text-sm mb-4 flex-grow">{doc.description}</p>
+                                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className={`mt-auto text-white text-center font-bold py-2 px-4 rounded-md transition-colors ${doc.url && doc.url !== '#' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-400 cursor-not-allowed'}`}>View Document</a>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    </main>
+                    <footer className="border-t border-gray-200 mt-24">
+                        <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-gray-500">
+                            <p>Credit Appetite Paper &copy; 2025. All information is confidential.</p>
+                        </div>
+                    </footer>
+                    <TimelineEditorModal isOpen={isTimelineModalOpen} onClose={() => setIsTimelineModalOpen(false)} onSave={handleSaveTimeline} data={timelineData} />
+                    <TeamEditorModal isOpen={isTeamModalOpen} onClose={() => setIsTeamModalOpen(false)} onSave={handleSaveTeam} data={leadershipTeam} />
+                    <SupportingDocsEditorModal isOpen={isDocsModalOpen} onClose={() => setIsDocsModalOpen(false)} onSave={handleSaveDocs} data={supportingDocs} />
+                </div>
             </div>
         </AppContext.Provider>
     );
